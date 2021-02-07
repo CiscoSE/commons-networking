@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration strict="false" status="info">
+    <Appenders>
+   	 	<Console name="STDOUT" target="SYSTEM_OUT">
+      		<PatternLayout pattern="%d{dd-MM-yyyy HH:mm:ss,SSS} [%t] %-5level%c{1.} - %msg%n"/>
+	    </Console>
+    </Appenders>
+    
+	<Loggers>
+    	<Root level="info">
+    		<AppenderRef ref="STDOUT"/>  
+    	</Root>
+		
+		<Logger name="com.cisco.commons.networking" level="info" />
+	</Loggers>
+	
+</Configuration>

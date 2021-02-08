@@ -30,6 +30,8 @@ Parsing string representation of GNMI paths.
 Following:  
 [Representing GNMI paths as strings](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-path-strings.md#representing-gnmi-paths-as-strings)
 
+This is useful for device collection / GNMI path configuration.
+
 #### Example usage
 
 [GNMIUtilsTest](./gnmi-utils/src/test/java/com/cisco/gnmi/utils/GNMIUtilsTest.java) 

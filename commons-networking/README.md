@@ -20,6 +20,7 @@ It is used for unidirectional server to client events, as opposed to the full-du
 [SSEClientTest](./commons-networking/src/test/java/com/cisco/commons/networking/SSEClientTest.java) 
 
 ```
+EventHandler eventHandler = eventText -> { events.add(eventText); };
 SSEClient sseClient = SSEClient.builder().url(url).eventHandler(eventHandler)
 	.build();
 sseClient.start();

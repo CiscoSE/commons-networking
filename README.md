@@ -23,6 +23,7 @@ One of the use cases is by IEFT Netconf/Restconf protocols:
 [SSEClientTest](./commons-networking/src/test/java/com/cisco/commons/networking/SSEClientTest.java) 
 
 ```
+EventHandler eventHandler = eventText -> { events.add(eventText); };
 SSEClient sseClient = SSEClient.builder().url(url).eventHandler(eventHandler)
 	.build();
 sseClient.start();

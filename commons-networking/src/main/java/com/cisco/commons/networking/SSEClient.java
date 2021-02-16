@@ -42,10 +42,16 @@ import lombok.extern.slf4j.Slf4j;
  * <a href="https://www.w3.org/TR/eventsource/">HTML5</a> by the W3C. <br/>
  * It is used for unidirectional server to client events, as opposed to the full-duplex bidirectional WebSockets. <br/>
  * <br/>
- * The SSE client implementation is based on Java 11 HttpClient.
+ * The SSE client implementation is based on Java 11 HttpClient. <br/>
  * The SSE client has reconnect sampling mechanism with a default time of one minute. <br/>
  * The SSE client has connectivity refresh mechanism with default time of 24 hours. <br/>
  * 
+ * For secure SSL, there is support for non-trusted hosts by DisableHostnameVerification system property by setting
+ * setDisableHostnameVerificationSystemProperty parameter when building the object.
+ * This is translating to: System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true"); 
+ * This is not best practice as it is risky and sets a global system property, it is better to work with a trusted host.
+ * <br/>
+ * <br/>
  * Copyright 2021 Cisco Systems
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +62,7 @@ import lombok.extern.slf4j.Slf4j;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * </pre>
+ * 
  * 
  * @author Liran Mendelovich
  */
@@ -92,7 +98,7 @@ public class SSEClient {
     @Builder
     public SSEClient(String url, Map<String, String> headerParams, EventHandler eventHandler,
     		Long reconnectSamplingTimeMillis, Long connectivityRefreshDelay,
-    		TimeUnit connectivityRefreshDelayTimeUnit) {
+    		TimeUnit connectivityRefreshDelayTimeUnit, boolean setDisableHostnameVerificationSystemProperty) {
 		super();
 		if (url == null) {
 			throw new IllegalArgumentException("url cannot be null");
@@ -129,6 +135,9 @@ public class SSEClient {
 		this.pool = Executors.newSingleThreadExecutor();
 		this.connectivityRefreshPoolScheduler = Executors.newScheduledThreadPool(1);
 		try {
+			if (setDisableHostnameVerificationSystemProperty) {
+				System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
+			}
 			this.sslContext = buildSSLContext();
 		} catch (Exception e) {
 			throw new IllegalStateException("Failed getting SSL context", e);

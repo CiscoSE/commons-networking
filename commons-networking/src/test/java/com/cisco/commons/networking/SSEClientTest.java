@@ -6,10 +6,8 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Test;
 
@@ -130,6 +128,12 @@ public class SSEClientTest {
 				exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
 				exchange.getResponseBody().write(response);
 				exchange.getResponseBody().flush();
+				response = ("error: " + "error_message" + "\n\n").getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseBody().write(response);
+				exchange.getResponseBody().flush();
+				response = (": " + "comment" + "\n\n").getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseBody().write(response);
+				exchange.getResponseBody().flush();
 				sleepQuitely(1000);
 				response = ("data: " + EVENT2 + "\n\n").getBytes(StandardCharsets.UTF_8);
 				exchange.getResponseBody().write(response);
@@ -149,17 +153,4 @@ public class SSEClientTest {
             log.error("Error sleeping: " + e.getMessage());
         }
     }
-
-//	@Test
-	public void sSEClientTestNSOServer() throws Exception {
-		String url = "http://10.56.58.145:8080/restconf/streams/service-state-changes/json?start-time=2021-01-27T11:24:11Z";
-		Map<String, String> customHeaderParams = new HashMap<>();
-		customHeaderParams.put("Authorization", "Basic bnNvNTQyOlB1YmxpYzEyMzQh");
-		EventHandler eventHandler = eventText -> { log.info("Handle event: {}", eventText); };
-		SSEClient sseClient = SSEClient.builder().url(url).headerParams(customHeaderParams).eventHandler(eventHandler )
-			.build();
-		sseClient.start();
-		Thread.sleep(10 * 60 * 1000);
-		sseClient.shutdown();
-	}
 }

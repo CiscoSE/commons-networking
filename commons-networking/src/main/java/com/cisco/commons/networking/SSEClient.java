@@ -2,8 +2,10 @@ package com.cisco.commons.networking;
 
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -230,27 +232,32 @@ public class SSEClient {
     }
 
     private void handleResponse(InputStream inputStream) throws IOException {
+    	
+    	/*
+         * Separate notifications following SSE (server-sent-events) protocol:
+         * - A message text goes after 'data: ', the space after the colon is optional.
+         * - Messages are delimited with double line breaks \n\n.
+         */
+    	
         log.info("Handling response.");
         try (BufferedInputStream in = IOUtils.buffer(inputStream)) {
-            int charInt = -1;
-            StringBuilder stringBuilder = new StringBuilder();
-            char prevChar = 0;
-            
-            /*
-             * Separate notifications following SSE (server-sent-events) protocol:
-             * - A message text goes after 'data: ', the space after the colon is optional.
-             * - Messages are delimited with double line breaks \n\n.
-             */
-            while ((charInt = in.read()) != -1) {
-                char c = (char) charInt;
-                stringBuilder.append(c);
-                if (c == '\n' && prevChar == '\n') {
-                    String notification = stringBuilder.toString().replace("data:", "");
-                    handleData(notification);
-                    stringBuilder = new StringBuilder();
-                }
-                prevChar = c;
-            }
+        	try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        		String line = null;
+        		StringBuilder messageBuilder = new StringBuilder();
+        		while((line = reader.readLine()) != null) {
+        			String content = line;
+        			if (content.startsWith("data:")) {
+        				messageBuilder.append(content.substring(5));
+    				} else {
+    					log.debug("Ignoring non-data line: {}", content);
+    				}
+        			String message = messageBuilder.toString();
+					if (line.trim().isEmpty() && !message.isEmpty()) {
+        				handleData(message);
+        				messageBuilder = new StringBuilder();
+                    }
+        	    }
+        	}
         } catch (Exception e) {
             String errorMessage = "Could not handle response: " + e.getMessage();
             if ("closed".equals(e.getMessage())) {

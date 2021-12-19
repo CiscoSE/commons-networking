@@ -13,7 +13,7 @@ SSE client implementation based on Java 11 HttpClient.
 Server-Sent Events (SSE) is a [server push](https://en.wikipedia.org/wiki/Push_technology) technology 
 enabling a client to receive automatic updates from a server via HTTP connection.  
 The Server-Sent Events EventSource API is standardized as part of 
-[HTML5](https://www.w3.org/TR/eventsource) by the W3C.  
+[HTML](https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events).  
 It is used for unidirectional server to client events, as opposed to the full-duplex bidirectional WebSockets.  
 One of the use cases is by IEFT Netconf/Restconf protocols:
 [IETF reference](https://tools.ietf.org/id/draft-ietf-netconf-restconf-notif-08.html#rfc.section.3.4)

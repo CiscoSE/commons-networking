@@ -31,11 +31,14 @@ sseClient.start();
 ### Code analysis
 Code analysis done with Sonar.
 
+### Security
+Scanned with OWASP dependency-check-maven plugin for dependency-check-report.
+
 ### Testing
 Flows are covered by unit tests.
 
 ## Build
-Run maven install on commons-networking parent.
+Run maven install on parent project.
 
 ## Contributions
  * [Contributing](CONTRIBUTING.md) - how to contribute.

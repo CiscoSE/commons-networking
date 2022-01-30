@@ -38,10 +38,10 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * SSE (Server-sent events) client.
- * Server-Sent Events (SSE) is a <a href="https://en.wikipedia.org/wiki/Push_technology">server push</a> technology 
+ * Server-Sent Events (<a href="https://datatracker.ietf.org/doc/html/rfc8895">SSE</a>) is a <a href="https://en.wikipedia.org/wiki/Push_technology">server push</a> technology 
  * enabling a client to receive automatic updates from a server via HTTP connection. <br/>
  * The Server-Sent Events EventSource API is standardized as part of 
- * <a href="https://www.w3.org/TR/eventsource/">HTML5</a> by the W3C. <br/>
+ * <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface">HTML5</a>. <br/>
  * It is used for unidirectional server to client events, as opposed to the full-duplex bidirectional WebSockets. <br/>
  * <br/>
  * The SSE client implementation is based on Java 11 HttpClient. <br/>
@@ -234,9 +234,9 @@ public class SSEClient {
     private void handleResponse(InputStream inputStream) throws IOException {
     	
     	/*
-         * Separate notifications following SSE (server-sent-events) protocol:
+         * Separate notifications following <a href="https://datatracker.ietf.org/doc/html/rfc8895">SSE</a> (server-sent-events) protocol:
          * - A message text goes after 'data: ', the space after the colon is optional.
-         * - Messages are delimited with double line breaks \n\n.
+         * - A message is terminated by a blank line (two line terminators in a row).
          */
     	
         log.info("Handling response.");
@@ -251,8 +251,8 @@ public class SSEClient {
     				} else {
     					log.debug("Ignoring non-data line: {}", content);
     				}
-        			String message = messageBuilder.toString();
-					if (line.trim().isEmpty() && !message.isEmpty()) {
+					if (line.trim().isEmpty() && messageBuilder.length() > 0) {
+						String message = messageBuilder.toString();
         				handleData(message);
         				messageBuilder = new StringBuilder();
                     }

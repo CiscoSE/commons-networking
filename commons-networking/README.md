@@ -9,10 +9,10 @@ Commons networking related utils.
 
 ### SSE client
 SSE client implementation based on Java 11 HttpClient.  
-Server-Sent Events (SSE) is a [server push](https://en.wikipedia.org/wiki/Push_technology) technology 
+Server-Sent Events ([SSE](https://datatracker.ietf.org/doc/html/rfc8895)) is a [server push](https://en.wikipedia.org/wiki/Push_technology) technology 
 enabling a client to receive automatic updates from a server via HTTP connection.  
 The Server-Sent Events EventSource API is standardized as part of 
-[HTML5](https://www.w3.org/TR/eventsource) by the W3C.  
+[HTML5](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface) by the W3C.  
 It is used for unidirectional server to client events, as opposed to the full-duplex bidirectional WebSockets.
 
 #### Example usage

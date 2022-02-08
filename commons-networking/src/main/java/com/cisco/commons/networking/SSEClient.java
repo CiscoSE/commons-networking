@@ -55,10 +55,12 @@ import lombok.extern.slf4j.Slf4j;
  * The SSE client has reconnect sampling mechanism with a default time of one minute. <br/>
  * The SSE client has connectivity refresh mechanism with default time of 24 hours. <br/>
  * 
- * For secure SSL, there is support for non-trusted hosts by DisableHostnameVerification system property by setting
+ * For secure SSL/https, custom sslContext can be used.
+ * When it is not used, there is support for non-trusted hosts by DisableHostnameVerification system property by setting
  * setDisableHostnameVerificationSystemProperty parameter when building the object.
  * This is translating to: System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true"); 
- * This is not best practice as it is risky and sets a global system property, it is better to work with a trusted host.
+ * This is not best practice as it is can create risks and sets a global system property, it is better to 
+ * work with a trusted host and custom sslContext.
  * <br/>
  * When useKeepAliveMechanismIfReceived is used, and keep-alive / comment messages are received, it is 
  * handled by logic which will disconnect / reconnect to the stream when no messages are received for some
@@ -131,7 +133,8 @@ public class SSEClient {
     		Long reconnectSamplingTimeMillis, Long connectivityRefreshDelay,
     		TimeUnit connectivityRefreshDelayTimeUnit, boolean setDisableHostnameVerificationSystemProperty,
     		boolean useKeepAliveMechanismIfReceived, boolean useConnectivityCheck,
-    		Integer connectivityCheckIntervalSeconds, Integer minConnectivityThresholdSeconds) {
+    		Integer connectivityCheckIntervalSeconds, Integer minConnectivityThresholdSeconds,
+    		SSLContext sslContext) {
 		super();
 		if (url == null) {
 			throw new IllegalArgumentException("url cannot be null");
@@ -191,13 +194,17 @@ public class SSEClient {
 			if (setDisableHostnameVerificationSystemProperty) {
 				System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
 			}
-			this.sslContext = buildSSLContext();
+			if (sslContext == null) {
+				this.sslContext = buildAcceptingSSLContext();
+			} else {
+				this.sslContext = sslContext;
+			}
 		} catch (Exception e) {
 			throw new IllegalStateException("Failed getting SSL context", e);
 		}
 	}
     
-    private SSLContext buildSSLContext() throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException {
+    private SSLContext buildAcceptingSSLContext() throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException {
         TrustStrategy acceptingTrustStrategy = (cert, authType) -> true;
         return SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
     }
@@ -391,7 +398,19 @@ public class SSEClient {
     }
     
     protected void scheduleConnectivityTasks() {
-    	Runnable connectivityRefreshTask = () -> {
+    	Runnable connectivityRefreshTask = buildConnectivityRefreshTask();
+        log.info("Scheduling connectity refresh task.");
+    	scheduleConnectivityRefreshTask(connectivityRefreshTask);
+    	if (useConnectivityCheck) {
+	    	Runnable connectivityCheckTask = buildConnectivityCheckTask();
+	    	log.info("Scheduling connectity check task every {} seconds.", connectivityCheckIntervalSeconds);
+	        connectivityRefreshPoolScheduler.scheduleWithFixedDelay(connectivityCheckTask ,
+	        		connectivityCheckIntervalSeconds, connectivityCheckIntervalSeconds, TimeUnit.SECONDS);
+    	}
+    }
+
+	private Runnable buildConnectivityRefreshTask() {
+		return () -> {
             try {
                 log.info("Stopping current request, for refreshing connectivity with new request.");
                 stopCurrentRequest();
@@ -399,47 +418,47 @@ public class SSEClient {
                 log.info("Got error at connectivityRefreshTask: " + e.getMessage());
             }
         };
-        log.info("Scheduling connectity refresh task.");
-    	scheduleConnectivityRefreshTask(connectivityRefreshTask);
-    	if (useConnectivityCheck) {
-	    	Runnable connectivityCheckTask = () -> {
-	            try {
-	            	if (!isSubscribedSuccessfully()) {
-	            		log.debug("Status is not subscribed successfully. Skipping connectivity check.");
-	            		return;
-	            	}
-	            	boolean wasConnected = isConnected.get();
-	                boolean isCurrentlyConnected = isCurrentlyConnected();
-	                log.debug("connectivityCheckTask - isCurrentlyConnected: {}, wasConnected: {}, keepAliveReceived: {}, connectivityThresholdMillis: {}", 
-	            		isCurrentlyConnected, wasConnected, keepAliveReceivedInCurrentRequest, connectivityThresholdMillis);
-	                boolean shouldReconnect = false;
-	                if (keepAliveReceivedInCurrentRequest.get() && connectivityThresholdMillis > 0) {
-	                	if (!isCurrentlyConnected) {
-	                		log.info("time from last received message not valid.");
-	                		shouldReconnect = true;
-	                	}
-	                } else if (!wasConnected && isCurrentlyConnected) {
-	                	log.info("Previous status was disconnected, and now it is connected.");
-	                }
-	                if (!isCurrentlyConnected) {
-	                	shouldReconnect = true;
-	                }
-	                if (shouldReconnect) {
-	                	log.info("Stopping current request, for refreshing connectivity with new request.");
-	                	keepAliveReceivedInCurrentRequest.set(false);
-	            		reconnectionsCount.incrementAndGet();
-	                	stopCurrentRequest();
-	                }
-	                isConnected.set(isCurrentlyConnected);
-	            } catch (Exception e) {
-	                log.info("Got error at connectivityRefreshTask: " + e.getMessage());
-	            }
-	        };
-	    	log.info("Scheduling connectity check task every {} seconds.", connectivityCheckIntervalSeconds);
-	        connectivityRefreshPoolScheduler.scheduleWithFixedDelay(connectivityCheckTask ,
-	        		connectivityCheckIntervalSeconds, connectivityCheckIntervalSeconds, TimeUnit.SECONDS);
-    	}
-    }
+	}
+
+	private Runnable buildConnectivityCheckTask() {
+		return () -> {
+		    try {
+		    	if (!isSubscribedSuccessfully()) {
+		    		log.debug("Status is not subscribed successfully. Skipping connectivity check.");
+		    		return;
+		    	}
+		    	checkConnectivity();
+		    } catch (Exception e) {
+		        log.info("Got error at connectivityRefreshTask: " + e.getMessage());
+		    }
+		};
+	}
+
+	private void checkConnectivity() {
+		boolean wasConnected = isConnected.get();
+		boolean isCurrentlyConnected = isCurrentlyConnected();
+		log.debug("connectivityCheckTask - isCurrentlyConnected: {}, wasConnected: {}, keepAliveReceived: {}, connectivityThresholdMillis: {}", 
+			isCurrentlyConnected, wasConnected, keepAliveReceivedInCurrentRequest, connectivityThresholdMillis);
+		boolean shouldReconnect = false;
+		if (keepAliveReceivedInCurrentRequest.get() && connectivityThresholdMillis > 0) {
+			if (!isCurrentlyConnected) {
+				log.info("time from last received message not valid.");
+				shouldReconnect = true;
+			}
+		} else if (!wasConnected && isCurrentlyConnected) {
+			log.info("Previous status was disconnected, and now it is connected.");
+		}
+		if (!isCurrentlyConnected) {
+			shouldReconnect = true;
+		}
+		if (shouldReconnect) {
+			log.info("Stopping current request, for refreshing connectivity with new request.");
+			keepAliveReceivedInCurrentRequest.set(false);
+			reconnectionsCount.incrementAndGet();
+			stopCurrentRequest();
+		}
+		isConnected.set(isCurrentlyConnected);
+	}
     
     private boolean isCurrentlyConnected() {
 		try {
